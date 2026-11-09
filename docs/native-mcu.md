@@ -419,6 +419,44 @@ active card safe. Stopped-card export keeps its existing gate.
 Twenty-four firmware-free actual-board checks cover present/absent boot,
 repeated removal/reinsertion, unchanged endpoint/backing-file/adapter ownership,
 neighbor isolation, read-only observation and rejection without the adapter.
+
+
+## Whitelisted switch-candidate pin alias
+
+`mcu-switch-candidate` / `mcu-switch-candidate-pin` form a default-off
+semantic alias over the generic `mcu-pins` drive, restricted to six
+dual-evidence EX switch candidates: PB11 (default when the pin property
+is unset), PC2, PF6, PG2, PC5 and PG14.
+
+The alias borrows the selected pin only while
+`mcu-switch-candidate=true`: it drives the pin to its measured assert
+level. Turning it off, or switching pins while on, hands the pin back --
+the pin's accumulated generic `mcu-pins` drive when one is in effect,
+otherwise a true release to the pin's pull configuration (which for all
+six candidates equals the measured idle level). Runtime `mcu-pins` sets
+re-take the pins they list and never release unlisted ones, so the
+effective drive is tracked per pin instead of being re-derived from the
+last spec string; repeated assignments to one pin within a spec leave
+the last value. While the alias is off,
+selecting or switching the pin property changes no hardware state (last
+writer wins on a runtime set). Both properties require native MCU
+attachment, and non-whitelisted pins are rejected.
+
+Measured on stock EX, driving each candidate reaches the MAIN switch cache
+with the next SPI4 switch report, but none of the six is the real CFe/SD
+in-slot detect: MAIN samples the EXS MMIO poller instead (see the External
+CFexpress detect input section). The E1 card-detect hypothesis is the
+research history of these pins, not a claim of the property pair, which
+is why they are named switch-candidate: a whitelisted UI switch-cache
+drive with slot semantics left open, not a card-presence model. The
+seventy-one firmware-free checks in `tests/check_switch_candidate.py`
+cover the alias wiring, the generic-drive coexistence on synthetic
+A53/M4 programs, and the incremental-update hand-back: two separate
+runtime `mcu-pins` sets accumulate, a borrow cycle over them restores
+the accumulated drive rather than what the last spec string lists, a
+runtime set re-takes a borrowed pin whose drive the hand-back keeps, a
+rejected spec with a valid prefix hands back what applied, and a
+creation-time borrow deasserts back to its machine-time generic drive.
 A disposable-card original MAIN/EX run toggles false/true at virtual 19/23 seconds, then completes review and returns to Photo: 300 harness checks, 633 RAW frames, 761 MAIN/698 EX frames, zero checksum failures and clean shutdown. The backend stays identical. No absent-period filesystem event was independently observed, so complete native hot-plug remains unqualified.
 
 
@@ -600,7 +638,10 @@ power/reset connection is separate from an interrupt.
 
 `--experimental-main-supply-pin C1` on `tools/run_native.py` selects an explicit
 virtual supply connection. It is disabled by default. The output must be in
-GPIO output mode. The initial fixture is powered; the first high arms it.
+GPIO output mode. The pin is fixed at machine creation: it is snapshotted
+when the native MCU attaches, and runtime re-points are rejected after
+realization instead of silently leaving the watcher on the old pin. The
+initial fixture is powered; the first high arms it.
 Subsequent low stops the A53s; return high resets GIC and boots CPU0 through
 its architectural reset vector. Stock MAIN starts its other cores. EX, virtual
 card and RAM remain retained. Repeated same-level writes do not issue resets.
@@ -608,7 +649,7 @@ The IO snapshot exposes selected-supply state and cut/reset counters read-only.
 This is a declared functional connection, not recovered physical Z8 wiring or
 a complete electrical power-domain/fastboot model.
 
-Twenty-two synthetic checks cover the default unconnected case, selected and
+Twenty-four synthetic checks cover the default unconnected case, selected and
 neighbor outputs, two cuts/resets, retained MAIN RAM, independent EX execution,
 idempotence and invalid pin rejection. An original MAIN/EX single-cycle run
 cuts at 21.146 and returns at 24.050 virtual seconds, then resumes Photo and

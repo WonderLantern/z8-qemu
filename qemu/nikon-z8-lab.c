@@ -4,6 +4,7 @@
  * Copyright (C) 2026 GoldJohnKing: register-dump read-through.
  * Copyright (C) 2026 GoldJohnKing: EXS glue-block access trace.
  * Copyright (C) 2026 GoldJohnKing: single-lane stream-channel state field.
+ * Copyright (C) 2026 GoldJohnKing: switch candidate pin alias.
  * Copyright (C) 2026 GoldJohnKing: syscon semaphore model and service trace logs.
  * Nikon Z8 C3.11 functional board. Experimental, not a hardware specification.
  * Z8 scope and synthetic-input assumptions: ../README.md.
@@ -270,6 +271,8 @@ struct NikonZ8State {
     MachineState parent;
     char *mcu_image, *mcu_pins, *mcu_contacts, *mcu_adc_inputs;
     char *mcu_main_supply_pin;
+    char *mcu_switch_candidate_pin;
+    bool mcu_switch_candidate;
     struct Z8McuBridge *native_mcu;
     bool mcu_capture_sync_wires;
 
@@ -23641,6 +23644,22 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc,"native-mcu-state",get_z8_mcu_state,NULL);
     object_class_property_add_str(oc,"native-mcu-io-state",get_z8_mcu_io,NULL);
     object_class_property_add_str(oc,"mcu-pins",get_z8_mcu_pins,set_z8_mcu_pins);
+    object_class_property_add_str(oc,"mcu-switch-candidate-pin",get_z8_mcu_switch_candidate_pin,set_z8_mcu_switch_candidate_pin);
+    object_class_property_add_bool(oc,"mcu-switch-candidate",get_z8_mcu_switch_candidate,set_z8_mcu_switch_candidate);
+    object_class_property_set_description(oc, "mcu-switch-candidate",
+        "Default-off semantic alias over z8_stm32_gpio_drive for the six "
+        "dual-evidence EX switch-cache candidates: true borrows the "
+        "selected pin and drives it to its measured assert level; false "
+        "hands it back (the mcu-pins spec level when that spec lists the "
+        "pin, otherwise its pull state). Measured on stock EX: none of "
+        "the six is the CFe/SD in-slot detect (MAIN polls the EXS MMIO); "
+        "switch semantics unresolved, drive table in nikon-z8-mcu.h.");
+    object_class_property_set_description(oc, "mcu-switch-candidate-pin",
+        "Switch candidate borrowed by mcu-switch-candidate: PB11 "
+        "(default), PC2, PF6, PG2, PC5 or PG14; restricted to the "
+        "dual-evidence candidates measured on stock EX (see the table "
+        "in nikon-z8-mcu.h). While the alias is off, selecting a pin "
+        "changes no hardware state.");
     object_class_property_add_str(oc,"mcu-adc-inputs",get_z8_mcu_adc_inputs,set_z8_mcu_adc_inputs);
     object_class_property_add_str(oc,"native-mcu-adc-state",get_z8_mcu_adc_state,NULL);
     object_class_property_add_str(oc,"mcu-contacts",get_z8_mcu_contacts,set_z8_mcu_contacts);

@@ -125,9 +125,39 @@ python3 tests/check_main_supply.py --qemu /path/to/qemu-system-aarch64 \
 ```
 
 The twelve STOP checks use guest-recorded timer/interrupt values rather than
-host scheduling to establish clock isolation. The twenty-two supply checks
+host scheduling to establish clock isolation. The twenty-four supply checks
 include two cycles and the default unconnected negative control. Neither suite
 qualifies physical pin-to-rail wiring or original-firmware operation by itself.
+
+The whitelisted switch-candidate pin alias has its own actual-board suite:
+
+```sh
+python3 tests/check_switch_candidate.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-switch-candidate-check
+```
+
+The seventy-one checks configure the measured stock-EX pull pattern, then
+drive every whitelisted candidate through `mcu-switch-candidate` /
+`mcu-switch-candidate-pin` and read it back through the EX IDR: assert
+and release-to-pull for all six candidates, the default-pin path, hand-
+back on switch and deassert, spelling canonicalization, whitelist
+rejection, default-off and the native-MCU-attachment requirement. A
+second boot runs the same sequence against an existing generic
+`mcu-pins` drive (B11=0:C5=1): selecting and switching while the alias
+is off touch nothing, an un-listed candidate is released on deassert,
+and a listed one has its generic level restored instead of the alias
+idle level. The first boot also walks the incremental-update review
+case: two separate runtime `mcu-pins` sets (B11=0, then C5=1) accumulate,
+and a borrow cycle over PB11 hands back to the accumulated low drive,
+not to the pull state the last spec string would suggest; repeated
+assignments within one spec (B11=1,B11=0) leave the last value in
+hardware and on hand-back; a runtime mcu-pins set re-takes a borrowed
+pin and the hand-back keeps the newer drive; a rejected spec with a
+valid prefix leaves the hand-back on what applied rather than the
+retained string; and a creation-time borrow over a machine-time generic
+drive deasserts back to that drive. The suite establishes the alias
+wiring and its ownership rule only; which candidate carries which switch
+meaning stays unresolved.
 
 
 `tests/check_lpcm.py --qemu /path/to/qemu-system-aarch64 --output .local/new-lpcm-check`
